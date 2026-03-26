@@ -1,14 +1,19 @@
 "use client";
 import { useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { createClient } from "@supabase/supabase-js";
 import { Mail, MailOpen, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
-import type { Database } from "@/lib/database.types";
 
-type Message = Database["public"]["Tables"]["contact_messages"]["Row"];
+type Message = {
+  id: string; name: string; email: string; subject: string;
+  message: string; created_at: string; is_read: boolean;
+};
 
 export default function MessagesClient({ initialMessages }: { initialMessages: Message[] }) {
-  const supabase = createSupabaseBrowserClient();
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [selected, setSelected] = useState<Message | null>(null);
 

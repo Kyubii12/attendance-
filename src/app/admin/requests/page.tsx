@@ -1,27 +1,34 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { FileText, Mail, Building } from "lucide-react";
+import { Mail, Building } from "lucide-react";
+
+type DemoRequest = {
+  id: string; name: string; email: string; role: string;
+  department: string; message: string | null; created_at: string;
+};
 
 export default async function DemoRequestsPage() {
   const supabase = await createSupabaseServerClient();
-  const { data: requests } = await supabase
+  const { data } = await supabase
     .from("demo_requests")
     .select("*")
     .order("created_at", { ascending: false });
+
+  const requests = (data ?? []) as DemoRequest[];
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Demo Requests</h1>
-        <p className="text-gray-400 text-sm mt-1">{requests?.length ?? 0} total requests received.</p>
+        <p className="text-gray-400 text-sm mt-1">{requests.length} total requests received.</p>
       </div>
 
       <div className="space-y-4">
-        {(requests ?? []).length === 0 && (
+        {requests.length === 0 && (
           <div className="bg-[#1a2f4e] border border-white/5 rounded-xl p-10 text-center text-gray-600">
             No demo requests yet.
           </div>
         )}
-        {(requests ?? []).map((r) => (
+        {requests.map((r) => (
           <div key={r.id} className="bg-[#1a2f4e] border border-white/5 rounded-xl p-5 hover:border-[#c9a84c]/20 transition-colors">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -33,7 +40,10 @@ export default async function DemoRequestsPage() {
                 </div>
               </div>
               <div className="text-xs text-gray-500">
-                {new Date(r.created_at).toLocaleString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                {new Date(r.created_at).toLocaleString("en-PH", {
+                  month: "short", day: "numeric", year: "numeric",
+                  hour: "2-digit", minute: "2-digit",
+                })}
               </div>
             </div>
             {r.message && (

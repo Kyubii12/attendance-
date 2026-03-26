@@ -2,6 +2,12 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { Users, ClipboardList, FileText, MessageSquare, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
+type LogRow = {
+  id: string; student_id: string; status: string;
+  logged_at: string; subject: string | null;
+  students: { name: string; department: string } | null;
+};
+
 export default async function AdminOverviewPage() {
   const supabase = await createSupabaseServerClient();
 
@@ -21,18 +27,20 @@ export default async function AdminOverviewPage() {
     supabase.from("contact_messages").select("*", { count: "exact", head: true }).eq("is_read", false),
   ]);
 
-  const { data: recentLogs } = await supabase
+  const { data: rawLogs } = await supabase
     .from("attendance_logs")
     .select("*, students(name, department)")
     .order("logged_at", { ascending: false })
     .limit(8);
 
+  const recentLogs = (rawLogs ?? []) as LogRow[];
+
   const cards = [
-    { label: "Total Students",    value: totalStudents ?? 0,  icon: <Users size={22} />,         color: "text-blue-400",   bg: "bg-blue-500/10",   href: "/admin/students"   },
-    { label: "Attendance Logs",   value: totalLogs ?? 0,      icon: <ClipboardList size={22} />, color: "text-green-400",  bg: "bg-green-500/10",  href: "/admin/attendance" },
-    { label: "Present Today",     value: presentToday ?? 0,   icon: <TrendingUp size={22} />,    color: "text-[#c9a84c]",  bg: "bg-[#c9a84c]/10",  href: "/admin/attendance" },
-    { label: "Demo Requests",     value: demoRequests ?? 0,   icon: <FileText size={22} />,      color: "text-purple-400", bg: "bg-purple-500/10", href: "/admin/requests"   },
-    { label: "Unread Messages",   value: unreadMessages ?? 0, icon: <MessageSquare size={22} />, color: "text-red-400",    bg: "bg-red-500/10",    href: "/admin/messages"   },
+    { label: "Total Students",  value: totalStudents ?? 0,  icon: <Users size={22} />,         color: "text-blue-400",   bg: "bg-blue-500/10",   href: "/admin/students"   },
+    { label: "Attendance Logs", value: totalLogs ?? 0,      icon: <ClipboardList size={22} />, color: "text-green-400",  bg: "bg-green-500/10",  href: "/admin/attendance" },
+    { label: "Present Today",   value: presentToday ?? 0,   icon: <TrendingUp size={22} />,    color: "text-[#c9a84c]",  bg: "bg-[#c9a84c]/10",  href: "/admin/attendance" },
+    { label: "Demo Requests",   value: demoRequests ?? 0,   icon: <FileText size={22} />,      color: "text-purple-400", bg: "bg-purple-500/10", href: "/admin/requests"   },
+    { label: "Unread Messages", value: unreadMessages ?? 0, icon: <MessageSquare size={22} />, color: "text-red-400",    bg: "bg-red-500/10",    href: "/admin/messages"   },
   ];
 
   return (
@@ -44,7 +52,6 @@ export default async function AdminOverviewPage() {
         </p>
       </div>
 
-      {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         {cards.map((c) => (
           <Link key={c.label} href={c.href}
@@ -58,7 +65,6 @@ export default async function AdminOverviewPage() {
         ))}
       </div>
 
-      {/* Recent attendance */}
       <div className="bg-[#1a2f4e] border border-white/5 rounded-xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
           <h2 className="text-white font-semibold">Recent Attendance</h2>
@@ -76,14 +82,10 @@ export default async function AdminOverviewPage() {
               </tr>
             </thead>
             <tbody>
-              {(recentLogs ?? []).map((l) => (
+              {recentLogs.map((l) => (
                 <tr key={l.id} className="border-b border-white/5 last:border-0 hover:bg-white/5">
-                  <td className="px-6 py-3 text-white font-medium">
-                    {(l as { students?: { name: string } }).students?.name ?? "—"}
-                  </td>
-                  <td className="px-6 py-3 text-gray-400">
-                    {(l as { students?: { department: string } }).students?.department ?? "—"}
-                  </td>
+                  <td className="px-6 py-3 text-white font-medium">{l.students?.name ?? "—"}</td>
+                  <td className="px-6 py-3 text-gray-400">{l.students?.department ?? "—"}</td>
                   <td className="px-6 py-3 text-gray-400 text-xs">{l.subject ?? "—"}</td>
                   <td className="px-6 py-3 text-gray-400 text-xs whitespace-nowrap">
                     {new Date(l.logged_at).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}

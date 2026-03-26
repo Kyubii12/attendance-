@@ -1,21 +1,26 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import type { Database } from "./database.types";
+import { createClient } from "@supabase/supabase-js";
 
+// Plain untyped server client — avoids 'never' type inference issues during build
 export async function createSupabaseServerClient() {
+  const { cookies } = await import("next/headers");
   const cookieStore = await cookies();
-  return createServerClient<Database>(
+
+  const client = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
+      global: {
+        headers: {
+          cookie: cookieStore.getAll().map(c => `${c.name}=${c.value}`).join("; "),
         },
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
       },
     }
   );
+
+  return client;
 }
