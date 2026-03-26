@@ -1,7 +1,12 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Camera, CameraOff, ScanFace, CheckCircle, Clock, MonitorPlay } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type LogEntry = {
   id: number;

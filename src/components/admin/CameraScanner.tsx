@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { createClient } from "@supabase/supabase-js";
 import {
   Camera, CameraOff, ScanFace, CheckCircle,

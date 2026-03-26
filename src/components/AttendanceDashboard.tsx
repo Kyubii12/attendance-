@@ -1,8 +1,13 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 import { ScanFace, Users, Clock, AlertCircle, Download, RefreshCw, Filter, Wifi, WifiOff } from "lucide-react";
 import toast from "react-hot-toast";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type LogRow = {
   id: string;
@@ -52,7 +57,6 @@ export default function AttendanceDashboard() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "attendance_logs" },
         async (payload) => {
-          // Fetch the full row with student join
           const { data } = await supabase
             .from("attendance_logs")
             .select("*, students(name, department)")
@@ -60,9 +64,10 @@ export default function AttendanceDashboard() {
             .single();
 
           if (data) {
-            setLogs((prev) => [data as LogRow, ...prev]);
-            setFlash(data.id);
-            toast.success(`${(data as LogRow).students?.name ?? "Student"} marked ${data.status}`);
+            const row = data as LogRow;
+            setLogs((prev) => [row, ...prev]);
+            setFlash(row.id);
+            toast.success(`${row.students?.name ?? "Student"} marked ${row.status}`);
             setTimeout(() => setFlash(null), 2000);
           }
         }
