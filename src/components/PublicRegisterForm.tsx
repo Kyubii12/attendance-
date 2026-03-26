@@ -71,6 +71,9 @@ export default function PublicRegisterForm() {
     <form onSubmit={handleSubmit(onSubmit)}
       className="bg-[#1a2f4e] border border-white/10 rounded-2xl p-8 space-y-4">
 
+      <h2 className="text-white font-bold text-lg mb-1">Enter Student Details</h2>
+      <p className="text-gray-500 text-xs mb-4">All fields marked * are required.</p>
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-gray-400 mb-1.5">Student ID *</label>
