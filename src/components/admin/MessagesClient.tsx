@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 import { Mail, MailOpen, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { supabase } from "@/lib/supabase";
 
 type Message = {
   id: string; name: string; email: string; subject: string;
@@ -10,10 +10,6 @@ type Message = {
 };
 
 export default function MessagesClient({ initialMessages }: { initialMessages: Message[] }) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [selected, setSelected] = useState<Message | null>(null);
 

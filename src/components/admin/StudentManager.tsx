@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,6 +10,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import FaceCapture from "@/components/admin/FaceCapture";
+import { supabase } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 
 type Student = Database["public"]["Tables"]["students"]["Row"];
@@ -31,11 +31,7 @@ type FormData = z.infer<typeof schema>;
 type Step = "info" | "face" | "done";
 
 export default function StudentManager({ initialStudents }: { initialStudents: Student[] }) {
-  const router   = useRouter();
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const router = useRouter();
 
   const [students, setStudents]     = useState<Student[]>(initialStudents);
   const [showForm, setShowForm]     = useState(false);

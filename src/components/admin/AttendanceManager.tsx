@@ -1,6 +1,6 @@
 "use client";
 import { useState, useMemo } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 import {
   ClipboardCheck, Download, Search, Filter,
   CheckCircle, Clock, XCircle, Save, History, Plus, Camera
@@ -32,11 +32,6 @@ export default function AttendanceManager({
   initialStudents: Student[];
   initialLogs: AttendanceLogWithStudent[];
 }) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
   // ── Tab state ──────────────────────────────────────────────
   const [tab, setTab] = useState<"take" | "camera" | "history">("take");
 

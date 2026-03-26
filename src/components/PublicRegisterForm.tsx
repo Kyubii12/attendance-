@@ -4,7 +4,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle, UserPlus } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 import { useState } from "react";
 
 const DEPARTMENTS = ["BSMT", "BSCS", "BSIT", "BSMar.E", "BSECE", "BSN", "BSBA"];
@@ -27,10 +27,6 @@ export default function PublicRegisterForm() {
     useForm<FormData>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (data: FormData) => {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
     const { error } = await supabase.from("students").insert({
       student_id: data.student_id,
       name:       data.name,
