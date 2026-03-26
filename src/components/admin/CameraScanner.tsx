@@ -105,36 +105,43 @@ export default function CameraScanner({ students }: { students: Student[] }) {
     rafRef.current = requestAnimationFrame(liveLoop);
   }, [animBox]);
 
-  const pickRandom = useCallback(() => {
-    const unscanned = students.filter(s => !scanned.find(e => e.student.id === s.id));
-    if (unscanned.length === 0) return null;
-    return unscanned[Math.floor(Math.random() * unscanned.length)];
-  }, [students, scanned]);
-
   const startScanCycle = useCallback(() => {
     scanTimer.current = setInterval(() => {
-      setScanning(true);
-      setTimeout(() => {
-        const student = pickRandom();
-        if (student) {
-          const status: Status = Math.random() > 0.8 ? "Late" : "Present";
-          const entry: ScannedEntry = {
-            id: `${student.id}-${Date.now()}`,
-            student,
-            status,
-            time: new Date().toLocaleTimeString("en-PH", { hour:"2-digit", minute:"2-digit", second:"2-digit" }),
-            saved: false,
-          };
+      // Get unscanned students at scan time using latest state
+      setScanned(currentScanned => {
+        const unscanned = students.filter(
+          s => !currentScanned.find(e => e.student.id === s.id)
+        );
+
+        if (unscanned.length === 0) {
+          // All students scanned — stop the cycle
+          if (scanTimer.current) clearInterval(scanTimer.current);
+          toast("All students have been scanned.", { icon: "✅", duration: 3000 });
+          return currentScanned;
+        }
+
+        // Pick next unscanned student
+        const student = unscanned[Math.floor(Math.random() * unscanned.length)];
+        const status: Status = Math.random() > 0.8 ? "Late" : "Present";
+        const entry: ScannedEntry = {
+          id: `${student.id}-${Date.now()}`,
+          student,
+          status,
+          time: new Date().toLocaleTimeString("en-PH", { hour:"2-digit", minute:"2-digit", second:"2-digit" }),
+          saved: false,
+        };
+
+        setScanning(true);
+        setTimeout(() => {
           setDetected(student);
-          setScanned(prev => [entry, ...prev]);
           toast.success(`${student.name} — ${status}`, { duration: 2000 });
           setTimeout(() => { setDetected(null); setScanning(false); }, 2000);
-        } else {
-          setScanning(false);
-        }
-      }, 800);
+        }, 800);
+
+        return [entry, ...currentScanned];
+      });
     }, 4000);
-  }, [pickRandom]);
+  }, [students]);
 
   const stop = useCallback(() => {
     streamRef.current?.getTracks().forEach(t => t.stop());
@@ -353,12 +360,19 @@ export default function CameraScanner({ students }: { students: Student[] }) {
           <div className="flex items-center justify-between">
             <h3 className="text-white font-semibold text-sm flex items-center gap-2">
               <UserCheck size={16} className="text-[#c9a84c]" />
-              Scanned ({scanned.length})
+              Scanned ({scanned.length}/{students.length})
             </h3>
-            <button onClick={() => setShowManual(true)}
-              className="flex items-center gap-1.5 text-xs text-[#c9a84c] hover:text-[#e8c96a] border border-[#c9a84c]/30 px-2.5 py-1.5 rounded-lg transition-colors">
-              + Manual
-            </button>
+            <div className="flex items-center gap-2">
+              {scanned.length === students.length && students.length > 0 && (
+                <span className="text-xs text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded-full font-semibold">
+                  All scanned ✓
+                </span>
+              )}
+              <button onClick={() => setShowManual(true)}
+                className="flex items-center gap-1.5 text-xs text-[#c9a84c] hover:text-[#e8c96a] border border-[#c9a84c]/30 px-2.5 py-1.5 rounded-lg transition-colors">
+                + Manual
+              </button>
+            </div>
           </div>
 
           {/* Manual add modal */}
