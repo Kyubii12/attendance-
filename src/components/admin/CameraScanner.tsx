@@ -80,18 +80,35 @@ export default function CameraScanner({ students }: { students: Student[] }) {
   const [boxPos, setBoxPos]     = useState({ x:0.25, y:0.12, w:0.5, h:0.7 });
   const [savingAll, setSavingAll] = useState(false);
   const [showManual, setShowManual] = useState(false);
+  const [hallwayMode, setHallwayMode] = useState(false);
+
+  // Multiple detection boxes for hallway mode
+  const [boxes, setBoxes] = useState([
+    { x:0.08, y:0.1, w:0.25, h:0.75 },
+    { x:0.37, y:0.1, w:0.25, h:0.75 },
+    { x:0.66, y:0.1, w:0.25, h:0.75 },
+  ]);
 
   const active = mode === "live" || mode === "sim";
   const finalSubject = customSubject.trim() || subject;
 
   const animBox = useCallback(() => {
-    setBoxPos(p => ({
-      x: Math.max(0.1, Math.min(0.4, p.x+(Math.random()-0.5)*0.004)),
-      y: Math.max(0.05, Math.min(0.2, p.y+(Math.random()-0.5)*0.004)),
-      w: Math.max(0.4, Math.min(0.6, p.w+(Math.random()-0.5)*0.002)),
-      h: Math.max(0.6, Math.min(0.8, p.h+(Math.random()-0.5)*0.002)),
-    }));
-  }, []);
+    if (hallwayMode) {
+      setBoxes(prev => prev.map(b => ({
+        x: Math.max(0.02, Math.min(b.x + (Math.random()-0.5)*0.003, 0.7)),
+        y: Math.max(0.05, Math.min(b.y + (Math.random()-0.5)*0.003, 0.15)),
+        w: Math.max(0.22, Math.min(b.w + (Math.random()-0.5)*0.002, 0.3)),
+        h: Math.max(0.65, Math.min(b.h + (Math.random()-0.5)*0.002, 0.82)),
+      })));
+    } else {
+      setBoxPos(p => ({
+        x: Math.max(0.1, Math.min(0.4, p.x+(Math.random()-0.5)*0.004)),
+        y: Math.max(0.05, Math.min(0.2, p.y+(Math.random()-0.5)*0.004)),
+        w: Math.max(0.4, Math.min(0.6, p.w+(Math.random()-0.5)*0.002)),
+        h: Math.max(0.6, Math.min(0.8, p.h+(Math.random()-0.5)*0.002)),
+      }));
+    }
+  }, [hallwayMode]);
 
   const simLoop = useCallback(() => {
     const c = canvasRef.current; if (!c) return;
@@ -107,41 +124,53 @@ export default function CameraScanner({ students }: { students: Student[] }) {
 
   const startScanCycle = useCallback(() => {
     scanTimer.current = setInterval(() => {
-      // Get unscanned students at scan time using latest state
       setScanned(currentScanned => {
         const unscanned = students.filter(
           s => !currentScanned.find(e => e.student.id === s.id)
         );
 
         if (unscanned.length === 0) {
-          // All students scanned — stop the cycle
           if (scanTimer.current) clearInterval(scanTimer.current);
-          toast("All students have been scanned.", { icon: "✅", duration: 3000 });
+          toast("All students scanned.", { icon: "✅", duration: 3000 });
           return currentScanned;
         }
 
-        // Pick next unscanned student
-        const student = unscanned[Math.floor(Math.random() * unscanned.length)];
-        const status: Status = Math.random() > 0.8 ? "Late" : "Present";
-        const entry: ScannedEntry = {
-          id: `${student.id}-${Date.now()}`,
+        // Multi-scan: detect 1-3 students per cycle (hallway mode = 3, standard = 1)
+        const batchSize = Math.min(hallwayMode ? 3 : 1, unscanned.length);
+        const batch: Student[] = [];
+        for (let i = 0; i < batchSize; i++) {
+          const idx = Math.floor(Math.random() * unscanned.length);
+          const student = unscanned.splice(idx, 1)[0];
+          if (student) batch.push(student);
+        }
+
+        if (batch.length === 0) return currentScanned;
+
+        const newEntries: ScannedEntry[] = batch.map(student => ({
+          id: `${student.id}-${Date.now()}-${Math.random()}`,
           student,
-          status,
+          status: (Math.random() > 0.8 ? "Late" : "Present") as Status,
           time: new Date().toLocaleTimeString("en-PH", { hour:"2-digit", minute:"2-digit", second:"2-digit" }),
           saved: false,
-        };
+        }));
 
         setScanning(true);
         setTimeout(() => {
-          setDetected(student);
-          toast.success(`${student.name} — ${status}`, { duration: 2000 });
+          setDetected(batch[0]);
+          const names = batch.map(s => s.name).join(", ");
+          toast.success(
+            batch.length === 1
+              ? `${names} — ${newEntries[0].status}`
+              : `${batch.length} students detected: ${names}`,
+            { duration: 2500 }
+          );
           setTimeout(() => { setDetected(null); setScanning(false); }, 2000);
-        }, 800);
+        }, 600);
 
-        return [entry, ...currentScanned];
+        return [...newEntries, ...currentScanned];
       });
-    }, 4000);
-  }, [students]);
+    }, 2500); // Faster cycle: 2.5s instead of 4s
+  }, [students, hallwayMode]);
 
   const stop = useCallback(() => {
     streamRef.current?.getTracks().forEach(t => t.stop());
@@ -302,22 +331,45 @@ export default function CameraScanner({ students }: { students: Student[] }) {
 
             {active && (
               <>
-                {/* Detection box */}
-                <div className="absolute pointer-events-none"
-                  style={{ left:`${boxPos.x*100}%`, top:`${boxPos.y*100}%`, width:`${boxPos.w*100}%`, height:`${boxPos.h*100}%` }}>
-                  <span className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-[#c9a84c]" />
-                  <span className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-[#c9a84c]" />
-                  <span className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-[#c9a84c]" />
-                  <span className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-[#c9a84c]" />
-                  {scanning && <div className="absolute inset-x-0 h-0.5 bg-[#c9a84c]/80 animate-scanline" />}
-                  {detected && (
-                    <div className="absolute -bottom-9 left-0 right-0 flex justify-center">
-                      <span className="bg-[#c9a84c] text-[#0a1628] text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-lg">
-                        <CheckCircle size={12} /> {detected.name}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                {/* Single box (standard mode) */}
+                {!hallwayMode && (
+                  <div className="absolute pointer-events-none"
+                    style={{ left:`${boxPos.x*100}%`, top:`${boxPos.y*100}%`, width:`${boxPos.w*100}%`, height:`${boxPos.h*100}%` }}>
+                    <span className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-[#c9a84c]" />
+                    <span className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-[#c9a84c]" />
+                    <span className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-[#c9a84c]" />
+                    <span className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-[#c9a84c]" />
+                    {scanning && <div className="absolute inset-x-0 h-0.5 bg-[#c9a84c]/80 animate-scanline" />}
+                    {detected && (
+                      <div className="absolute -bottom-9 left-0 right-0 flex justify-center">
+                        <span className="bg-[#c9a84c] text-[#0a1628] text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-lg">
+                          <CheckCircle size={12} /> {detected.name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Multi-box (hallway mode) */}
+                {hallwayMode && boxes.map((b, i) => (
+                  <div key={i} className="absolute pointer-events-none"
+                    style={{ left:`${b.x*100}%`, top:`${b.y*100}%`, width:`${b.w*100}%`, height:`${b.h*100}%` }}>
+                    <span className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-[#c9a84c]" />
+                    <span className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-[#c9a84c]" />
+                    <span className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-[#c9a84c]" />
+                    <span className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-[#c9a84c]" />
+                    {scanning && <div className="absolute inset-x-0 h-0.5 bg-[#c9a84c]/60 animate-scanline" />}
+                  </div>
+                ))}
+
+                {/* Hallway detected names */}
+                {hallwayMode && detected && (
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 flex-wrap px-4">
+                    <span className="bg-[#c9a84c] text-[#0a1628] text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-lg">
+                      <CheckCircle size={12} /> {detected.name}
+                    </span>
+                  </div>
+                )}
                 {/* Badges */}
                 <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm text-xs font-semibold px-3 py-1.5 rounded-full">
                   <span className={`w-2 h-2 rounded-full animate-pulse ${mode==="live" ? "bg-green-400":"bg-[#c9a84c]"}`} />
@@ -351,7 +403,20 @@ export default function CameraScanner({ students }: { students: Student[] }) {
                 <CameraOff size={15} /> Stop
               </button>
             )}
-            <span className="text-gray-600 text-xs ml-1">Detects every ~4s</span>
+            {/* Hallway mode toggle */}
+            <button
+              onClick={() => setHallwayMode(h => !h)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                hallwayMode
+                  ? "bg-[#c9a84c]/10 border-[#c9a84c]/40 text-[#c9a84c]"
+                  : "bg-[#1a2f4e] border-white/10 text-gray-400 hover:text-white"
+              }`}>
+              <ScanFace size={15} />
+              {hallwayMode ? "Hallway Mode ON" : "Hallway Mode"}
+            </button>
+            <span className="text-gray-600 text-xs">
+              {hallwayMode ? "3 faces · 2.5s cycle" : "1 face · 2.5s cycle"}
+            </span>
           </div>
         </div>
 
